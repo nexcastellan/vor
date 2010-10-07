@@ -1,0 +1,122 @@
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+
+AC_PREREQ(2.61)
+AC_INIT(FULL-PACKAGE-NAME, VERSION, BUG-REPORT-ADDRESS)
+AC_CONFIG_SRCDIR([vor.cpp])
+AC_CONFIG_HEADER([config.h])
+AC_PREFIX_DEFAULT(/nexopia)
+
+environment_CXXFLAGS="$CXXFLAGS"
+environment_LDFLAGS="$LDFLAGS"
+
+# Checks for programs.
+AC_PROG_CXX
+AC_PROG_INSTALL
+AC_PROG_MKDIR_P
+
+# Checks for header files.
+AC_CHECK_HEADERS([netinet/in.h sys/socket.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_HEADER_STDBOOL
+AC_C_CONST
+AC_TYPE_SIZE_T
+
+# Checks for library functions.
+AC_TYPE_SIGNAL
+AC_CHECK_FUNCS([socket strtol])
+AC_CHECK_HEADER(malloc/malloc.h, [AC_DEFINE(HAVE_MALLOC_MALLOC_H, 1, [Define to 1 if you have the <malloc/malloc.h> header file.])])
+AC_CHECK_HEADER(malloc.h, [AC_DEFINE(HAVE_MALLOC_H, 1, [Define to 1 if you have the <malloc.h> header file.])])
+AC_CHECK_FUNCS(shm_unlink, , [
+	AC_CHECK_LIB(rt, shm_unlink, [
+		RT_LIB="-lrt"])
+])
+
+# Checks for boost
+AC_CACHE_CHECK([for boost libraries], [ac_cv_BOOST_DIR], [
+    ac_cv_BOOST_DIR="(missing)"
+
+    for boostdir in $with_BOOST_DIR /nexopia /usr /usr/local; do
+        # Skip the directory if it isn't there.
+        if test ! -d "$boostdir" ; then
+            continue
+        fi
+
+        if test -f "$boostdir/lib/libboost_system.so" ; then
+			if test -f "$boostdir/lib/libboost_program_options.so" ; then
+            	ac_cv_BOOST_DIR="$boostdir/lib"
+				BOOST_CPPFLAGS="-I $boostdir/include"
+				BOOST_LDFLAGS="-L$boostdir/lib -lboost_system -lboost_program_options"
+				break
+			fi
+		fi
+        if test -f "$boostdir/lib/libboost_system.dylib" ; then
+			if test -f "$boostdir/lib/libboost_program_options.dylib" ; then
+            	ac_cv_BOOST_DIR="$boostdir/lib"
+				BOOST_CPPFLAGS="-I $boostdir/include"
+				BOOST_LDFLAGS="-L$boostdir/lib -lboost_system -lboost_program_options"
+				break
+			fi
+		fi
+    done
+])
+
+if test x$ac_cv_BOOST_DIR = "x(missing)"; then
+    AC_MSG_ERROR([Could not find boost libraries. You can specify an explicit path using --with-boost])
+fi
+
+AC_SUBST([BOOST_CPPFLAGS])
+AC_SUBST([BOOST_LDFLAGS])
+
+# gethostbyname in the nsl lib?
+AC_CHECK_FUNC(gethostbyname, , AC_CHECK_LIB(nsl, gethostbyname))
+# socket lib?
+AC_CHECK_FUNC(connect, , AC_CHECK_LIB(socket, connect))
+# dl lib?
+AC_CHECK_FUNC(dlopen, , AC_CHECK_LIB(dl, dlopen))
+
+AC_CHECK_LIB(curl, curl_version, libcurl=yes, libcurl=no)
+if test "x$libcurl" = xyes ; then
+    LIBS="$LIBS -lcurl"
+else
+	AC_MSG_CHECKING([checking for curl with SSL])
+	LIBS="$LIBS -lcurl -lssl -lcrypto"
+	AC_TRY_LINK([#include <curl/curl.h>], [curl_version();], libcurl=yes, libcurl=no)
+	if test "x$libcurl" = xno ; then
+		AC_MSG_RESULT(no)
+		AC_MSG_ERROR([libcurl required..go to http://curl.haxx.se/ to
+download and then install it first])
+	else
+		AC_MSG_RESULT(yes)
+	fi
+fi
+
+# Options
+AC_ARG_ENABLE(release,
+    AC_HELP_STRING([--enable-release],
+        [compile in release mode (default=yes)]),
+    	[enable_RELEASE=$enableval],
+    	[enable_RELEASE=yes])
+
+AC_ARG_ENABLE(debug,
+    AC_HELP_STRING([--enable-debug],
+        [compile in release mode (default=no)]),
+    	[enable_DEBUG=$enableval],
+    	[enable_DEBUG=no])
+
+
+# enable/release build
+if test x$enable_DEBUG = xyes; then
+    CXXFLAGS="-pthread -g3 -O0 -pedantic -Wall -Werror -Wno-long-long -ansi $environment_CXXFLAGS"
+    LDFLAGS="-pthread $environment_LDFLAGS $RT_LIB $LIBS"
+elif test x$enable_RELEASE = xyes; then
+    CXXFLAGS="-pthread -g -Os -pedantic -Wall -Wno-long-long -ansi $environment_CXXFLAGS"
+    LDFLAGS="-pthread $environment_LDFLAGS $RT_LIB $LIBS"
+else
+    AC_MSG_ERROR([No build type selected])
+fi
+
+# Finished, output
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT

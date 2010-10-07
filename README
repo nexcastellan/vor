@@ -1,0 +1,168 @@
+Vor
+~~~
+
+Norse goddess of wisdom.  http://en.wikipedia.org/wiki/V%C3%B6r
+
+
+How to Use
+~~~~~~~~~~
+
+Build the 'vor' executable using:
+./configure && make
+Run ./vor
+
+Command-line Options
+~~~~~~~~~~~~~~~~~~~~
+
+Options:
+  --help                                      Display this information
+  --config arg (=./vor.cfg)                   Full path to config file
+  --source_url arg (=http://www.nexopia.com/) Source URL to pull data from
+  --port arg (=6974)                          Listen for incoming connections 
+                                              on this port
+  --min_threads arg (=8)                      Minimum number of threads during 
+                                              initial data retrieval
+  --max_threads arg (=16)                     Maximum number of threads during 
+                                              initial data retrieval
+  --reload_hour arg (=3)                      Hour of day to reload data 
+                                              (localtime, 24 hour clock)
+  --reload_frequency arg (=10)                How often (every x minutes) to 
+                                              reload newuser/online data
+  -v [ --verbose ] arg (=1)                   Verbosity level, 0-3
+  --min_userid_mult arg (=1)                  minimum userid as multiple of 
+                                              maximum userid (debugging only)
+
+Config file is a file containing key=value pairs.  For example:
+min_threads=16
+max_threads=32
+
+Source url is where to pull data from the ruby site.  On beta, this would be
+http://www.beta.nexopia.com/ for example.
+
+Port is the port to listen for incoming connections.  May be used to run
+multiple daemons on the same machine.
+
+min_threads is the minimum number of threads to keep "in flight" while
+retrieving data from the ruby site.  max_threads is the maximum.  There
+is currently no way to limit the maximum number of search threads to run
+at any given time.
+
+reload_hour is the time of day (in local time) to reload all the data.
+This should be set to a quiet time on the site.
+
+reload_frequency is how often to retrieve data on new users and online
+users.  Once every ten minutes is probably appropriate as it does not
+place a particularly substantial load on the server.
+
+verbose is the level of verbosity on logging.  0 means log virtually no
+information at all.  1 logs normal information.  2 logs substantially more
+information, and is suitable for debugging.  3 is even more verbose.
+
+min_userid_mult is used solely for debugging.  Set to a value like .975 or
+.8 to load less than the full set of data.  This will make the initial
+data load complete more quickly.
+
+Ruby Code
+~~~~~~~~~
+
+On the Ruby side, look at user_search.rb (not usersearch.rb).  An example
+which searches for all userids that match the username 'jane' is:
+
+lib_require :UserSearch, 'user_search'
+
+results = UserSearch::Search::new.search(3233577,0,0, :username => 'jane')
+Note that I pass in Castellan's userid and so ensure that any friends
+will show up first in the result set.
+
+Search for a specific real name:
+results = UserSearch::Search::new.search(3233577,0,0,
+:firstname => 'Zyvcn', :lastname => 'Bkmxlqr')
+
+Search for a set of interests:
+results = UserSearch::Search::new.search(3233577,0,0,
+:interests => [38,40,44,46,48,66,68,69,70,71,73,74,78,83,84])
+
+Search for users in Edmonton:
+results = UserSearch::Search::new.search(3233577,0,0,
+:location => 18)
+
+Search for users who attended the University of Alberta:
+results = UserSearch::Search::new.search(3233577,0,0,
+:school => 5249)
+
+Search for a certain sexuality:
+results = UserSearch::Search::new.search(3233577,0,0,
+:interests => [38,40,44,46,48,66,68,69,70,71,73,74,78,83,84],
+:sexuality => 1)
+
+Search for users with pics:
+results = UserSearch::Search::new.search(3233577,0,0,
+:interests => [38,40,44,46,48,66,68,69,70,71,73,74,78,83,84],
+:with_picture => true)
+
+Search for single users:
+results = UserSearch::Search::new.search(3233577,0,0,
+:interests => [38,40,44,46,48,66,68,69,70,71,73,74,78,83,84],
+:single => true)
+
+Search for users with birthdays today:
+results = UserSearch::Search::new.search(3233577,0,0,
+:birthday => true)
+
+Search for online users:
+results = UserSearch::Search::new.search(3233577,0,0,
+:online => true)
+
+Search for new users:
+results = UserSearch::Search::new.search(3233577,0,0,
+:new_users => true)
+
+Search for users active recently:
+results = UserSearch::Search::new.search(3233577,0,0,
+:active_recently => true)
+
+
+Dev DB activetime
+~~~~~~~~~~~~~~~~~
+
+To update the useractivetime rows to something close to live:
+$site.dbs[:usersdb].query(
+"UPDATE useractivetime
+SET activetime = UNIX_TIMESTAMP(NOW()) - (86400 * 20)
+WHERE (userid % 10) = 0")
+
+$site.dbs[:usersdb].query(
+"UPDATE useractivetime
+SET activetime = UNIX_TIMESTAMP(NOW()) - (86400 * 9)
+WHERE (userid % 20) = 0")
+
+$site.dbs[:usersdb].query(
+"UPDATE useractivetime
+SET activetime = UNIX_TIMESTAMP(NOW()) - (86400 * 2)
+WHERE (userid % 30) = 0")
+
+$site.dbs[:usersdb].query(
+"UPDATE useractivetime
+SET activetime = UNIX_TIMESTAMP(NOW())
+WHERE (userid % 40) = 0")
+
+To view counts for users active in the past:
+$site.dbs[:usersdb].exec("
+SELECT COUNT(*) AS last_month FROM useractivetime
+WHERE activetime > (UNIX_TIMESTAMP(NOW()) - (86400 * 30))
+")
+
+$site.dbs[:usersdb].exec("
+SELECT COUNT(*) AS last_three_weeks FROM useractivetime
+WHERE activetime > (UNIX_TIMESTAMP(NOW()) - (86400 * 21))
+")
+
+$site.dbs[:usersdb].exec("
+SELECT COUNT(*) AS last_two_weeks FROM useractivetime
+WHERE activetime > (UNIX_TIMESTAMP(NOW()) - (86400 * 7))
+")
+
+$site.dbs[:usersdb].exec("
+SELECT COUNT(*) AS last_week FROM useractivetime
+WHERE activetime > (UNIX_TIMESTAMP(NOW()) - (86400))
+")

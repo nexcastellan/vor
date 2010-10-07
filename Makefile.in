@@ -1,0 +1,68 @@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+sysconfdir = @sysconfdir@
+
+UNAME := $(shell uname -s)
+CXX = @CXX@
+
+DEFINES = @DEFS@
+
+CXXFLAGS = ${DEFINES} @CXXFLAGS@ @BOOST_CPPFLAGS@
+LDFLAGS = @LDFLAGS@ @BOOST_LDFLAGS@
+
+INSTALL = @INSTALL@
+MKDIR_P = @MKDIR_P@
+
+HEADERS = \
+    config.h \
+	data_structures.h \
+	http_client.h \
+	load.h \
+	lock.h \
+	program_options.h \
+	search.h \
+	server.h \
+	stats.h \
+ 	thread.h \
+	utility.h
+
+OBJECTS = \
+	data_structures.o \
+	http_client.o \
+	load.o \
+	lock.o \
+	program_options.o \
+	search.o \
+	server.o \
+	stats.o \
+	thread.o \
+	utility.o \
+	vor.o
+
+all: vor
+
+clean:
+	rm -f $(OBJECTS) vor
+	
+distclean: clean
+	rm -f config.h config.status config.log Makefile
+	rm -rf .deps autom4te.cache
+	
+install: vor
+	$(MKDIR_P) $(DESTDIR)$(bindir)
+	$(INSTALL) -m 755 vor $(DESTDIR)$(bindir)
+	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
+	$(INSTALL) -m 644 vor.cfg $(DESTDIR)$(sysconfdir)
+
+vor: $(OBJECTS)
+	$(CXX) $(LDFLAGS) -o vor $(OBJECTS)
+ifeq ($(UNAME),Darwin)
+# Set the boost library locations
+	install_name_tool -change libboost_system.dylib /nexopia/lib/libboost_system.dylib vor
+	install_name_tool -change libboost_program_options.dylib /nexopia/lib/libboost_program_options.dylib vor
+endif
+	
+%.o: %.cpp $(HEADERS) Makefile
+	$(CXX) $(CXXFLAGS) -c $<
+

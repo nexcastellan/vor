@@ -1,0 +1,16 @@
+interest 38
+interest 40
+interest 44
+interest 46
+interest 48
+interest 66
+interest 68
+interest 69
+interest 70
+interest 71
+interest 73
+interest 74
+interest 78
+interest 83
+interest 84
+single true
